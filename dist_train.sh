@@ -15,7 +15,7 @@
 export CUDA_VISIBLE_DEVICES=0,1,2,3
 NGPUS=4
 
-torchrun --nproc_per_node=$NGPUS train.py \
+torchrun --nproc_per_node=$NGPUS train_mfm.py \
     --data-path ./imagenet/ \
     --model resnet50 \
     --batch-size 256 \
