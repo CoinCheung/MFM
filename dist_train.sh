@@ -27,7 +27,7 @@ torchrun --nproc_per_node=$NGPUS train_mfm.py \
     --lr-warmup-epochs 20 \
     --clip-grad-norm 3.0 \
     --lr-warmup-method linear \
-    --output-dir ./mfm \
+    --output-dir ./res_pretrain \
     --amp \
     --train-crop-size 224
 
@@ -47,7 +47,7 @@ torchrun --nproc_per_node=$NGPUS train_mfm.py \
 #     --lr-scheduler cosineannealinglr \
 #     --lr-warmup-epochs 5 \
 #     --lr-warmup-method linear \
-#     --output-dir ./finetune \
+#     --output-dir ./res_finetune \
 #     --auto-augment ra_6_10 \
 #     --amp \
 #     --val-resize-size 236 \

@@ -1,4 +1,4 @@
 
 ./res/
-./mfm/
-./finetune/
+./res_pretrain/
+./res_finetune/
