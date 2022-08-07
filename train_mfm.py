@@ -176,7 +176,7 @@ def main(args):
             parameters, lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay, eps=0.0316, alpha=0.9
         )
     elif opt_name == "adamw":
-        optimizer = torch.optim.AdamW(parameters, lr=args.lr, weight_decay=args.weight_decay)
+        optimizer = torch.optim.AdamW(parameters, lr=args.lr, weight_decay=args.weight_decay, betas=(0.9, 0.95))
     else:
         raise RuntimeError(f"Invalid optimizer {args.opt}. Only SGD, RMSprop and AdamW are supported.")
 
@@ -253,9 +253,7 @@ def main(args):
             train_sampler.set_epoch(epoch)
         train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, args, model_ema, scaler)
         lr_scheduler.step()
-        if model_ema:
-            evaluate(model_ema, criterion, data_loader_test, device=device, log_suffix="EMA")
-        if args.output_dir:
+        if args.output_dir and (epoch+1) % 10 == 0:
             checkpoint = {
                 "model": model_without_ddp.state_dict(),
                 "optimizer": optimizer.state_dict(),
@@ -267,8 +265,7 @@ def main(args):
                 checkpoint["model_ema"] = model_ema.state_dict()
             if scaler:
                 checkpoint["scaler"] = scaler.state_dict()
-            utils.save_on_master(checkpoint, os.path.join(args.output_dir, f"model_{epoch}.pth"))
-            utils.save_on_master(checkpoint, os.path.join(args.output_dir, "checkpoint.pth"))
+            utils.save_on_master(checkpoint, os.path.join(args.output_dir, f"model_{epoch+1}.pth"))
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))

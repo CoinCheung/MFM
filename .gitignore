@@ -1,4 +1,7 @@
 
-./res/
-./res_pretrain/
-./res_finetune/
+./imagenet
+./res
+./res_pretrain
+./res_finetune
+./screenlog*
+*pth

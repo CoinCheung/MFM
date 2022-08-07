@@ -23,7 +23,7 @@ class FocalFrequencyLoss(torch.nn.Module):
             mask = mask.expand_as(preds)
             loss = loss * (1. - mask)
             loss = loss.sum(dim=(1,2,3))
-            n_pixel = mask.sum(dim=(1,2,3))
+            n_pixel = (1. - mask).sum(dim=(1,2,3))
             loss = loss / n_pixel
         loss = loss.mean()
         return loss

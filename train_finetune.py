@@ -227,8 +227,11 @@ def main(args):
     print("Creating model")
     model = torchvision.models.__dict__[args.model](num_classes=num_classes)
     if not args.weights is None:
-        state = torch.load(args.weights, map_location='cpu')
-        model.load_state_dict(state)
+        print(f'load weights from: {args.weights}')
+        state = torch.load(args.weights, map_location='cpu')['model']
+        msk = model.load_state_dict(state, strict=False)
+        if any(msk[0]): print(f'\tmissing keys: {msk[0]}')
+        if any(msk[1]): print(f'\tunexpected keys: {msk[1]}')
     model.to(device)
 
     if args.distributed and args.sync_bn:
@@ -348,25 +351,26 @@ def main(args):
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             train_sampler.set_epoch(epoch)
-        train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, args, model_ema, scaler)
+        train_one_epoch(model, criterion, optimizer, data_loader,
+                device, epoch, args, model_ema, scaler)
         lr_scheduler.step()
-        evaluate(model, criterion, data_loader_test, device=device)
-        if model_ema:
-            evaluate(model_ema, criterion, data_loader_test, device=device, log_suffix="EMA")
-        if args.output_dir:
-            checkpoint = {
-                "model": model_without_ddp.state_dict(),
-                "optimizer": optimizer.state_dict(),
-                "lr_scheduler": lr_scheduler.state_dict(),
-                "epoch": epoch,
-                "args": args,
-            }
+        if (epoch+1) % 10 == 0:
+            evaluate(model, criterion, data_loader_test, device=device)
             if model_ema:
-                checkpoint["model_ema"] = model_ema.state_dict()
-            if scaler:
-                checkpoint["scaler"] = scaler.state_dict()
-            utils.save_on_master(checkpoint, os.path.join(args.output_dir, f"model_{epoch}.pth"))
-            utils.save_on_master(checkpoint, os.path.join(args.output_dir, "checkpoint.pth"))
+                evaluate(model_ema, criterion, data_loader_test, device=device, log_suffix="EMA")
+            if args.output_dir:
+                checkpoint = {
+                    "model": model_without_ddp.state_dict(),
+                    "optimizer": optimizer.state_dict(),
+                    "lr_scheduler": lr_scheduler.state_dict(),
+                    "epoch": epoch,
+                    "args": args,
+                }
+                if model_ema:
+                    checkpoint["model_ema"] = model_ema.state_dict()
+                if scaler:
+                    checkpoint["scaler"] = scaler.state_dict()
+                utils.save_on_master(checkpoint, os.path.join(args.output_dir, f"model_{epoch+1}.pth"))
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
