@@ -7,3 +7,5 @@ screenlog*
 *pth
 main_mfm.py
 main_finetune.py
+mfm/__pycache__/
+.nfs-*
