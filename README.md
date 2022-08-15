@@ -1,5 +1,5 @@
 # MFM
-Unofficial code for paper "Masked Feature Prediction for Self-Supervised Visual Pre-Training" (https://arxiv.org/abs/2112.09133)
+Unofficial code for paper "Masked Feature Prediction for Self-Supervised Visual Pre-Training" (https://arxiv.org/pdf/2206.07706.pdf)
 
 
 ## Platform
@@ -7,6 +7,7 @@ Unofficial code for paper "Masked Feature Prediction for Self-Supervised Visual 
 * pytorch 1.11.0
 * torchvision 0.12.0
 * dali 1.16.0
+* V100 GPU(32G) x 8
 
 
 ## Dataset
