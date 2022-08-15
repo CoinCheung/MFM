@@ -14,21 +14,38 @@ import mfm.presets as presets
 import mfm.transforms as transforms
 import mfm.utils as utils
 from mfm.sampler import RASampler
+from mfm.dali_loader import (
+        create_dali_dataloader_train,
+        create_dali_dataloader_test)
 
 
 model_names = ['resnet50', 'resnet101']
 
 
-def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, args, model_ema=None, scaler=None):
+def parse_batch(batch, use_dali, device):
+    if use_dali:
+        image = batch[0]['data']
+        target = batch[0]['label'].squeeze(-1).long()
+    else:
+        image, target = batch
+        image = image.to(device, non_blocking=True)
+        target = target.to(device, non_blocking=True)
+    return image, target
+
+
+def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, args, model_ema=None, scaler=None, mixupcutmix=None):
     model.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter("lr", utils.SmoothedValue(window_size=1, fmt="{value:.5f}"))
     metric_logger.add_meter("img/s", utils.SmoothedValue(window_size=10, fmt="{value:.2f}"))
 
     header = f"Epoch: [{epoch}]"
-    for i, (image, target) in enumerate(metric_logger.log_every(data_loader, args.print_freq, header)):
+    for i, batch in enumerate(metric_logger.log_every(data_loader, args.print_freq, header)):
         start_time = time.time()
-        image, target = image.to(device), target.to(device)
+        image, target = parse_batch(batch, args.use_dali, device)
+        if mixupcutmix:
+            image, target = mixupcutmix(image, target)
+
         with torch.cuda.amp.autocast(enabled=scaler is not None):
             output = model(image)
             loss = criterion(output, target)
@@ -61,17 +78,18 @@ def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, arg
         metric_logger.meters["acc5"].update(acc5.item(), n=batch_size)
         metric_logger.meters["img/s"].update(batch_size / (time.time() - start_time))
 
+    if args.use_dali: data_loader.reset()
 
-def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix=""):
+
+def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="", args=None):
     model.eval()
     metric_logger = utils.MetricLogger(delimiter="  ")
     header = f"Test: {log_suffix}"
 
     num_processed_samples = 0
     with torch.inference_mode():
-        for image, target in metric_logger.log_every(data_loader, print_freq, header):
-            image = image.to(device, non_blocking=True)
-            target = target.to(device, non_blocking=True)
+        for batch in metric_logger.log_every(data_loader, print_freq, header):
+            image, target = parse_batch(batch, args.use_dali, device)
             output = model(image)
             loss = criterion(output, target)
 
@@ -84,10 +102,12 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="
             metric_logger.meters["acc5"].update(acc5.item(), n=batch_size)
             num_processed_samples += batch_size
     # gather the stats from all processes
+    if args.use_dali: data_loader.reset()
 
     num_processed_samples = utils.reduce_across_processes(num_processed_samples)
     if (
-        hasattr(data_loader.dataset, "__len__")
+        hasattr(data_loader, 'dataset')
+        and hasattr(data_loader.dataset, "__len__")
         and len(data_loader.dataset) != num_processed_samples
         and torch.distributed.get_rank() == 0
     ):
@@ -200,29 +220,34 @@ def main(args):
 
     train_dir = os.path.join(args.data_path, "train")
     val_dir = os.path.join(args.data_path, "val")
-    dataset, dataset_test, train_sampler, test_sampler = load_data(train_dir, val_dir, args)
 
-    collate_fn = None
-    num_classes = len(dataset.classes)
-    mixup_transforms = []
+    num_classes = args.num_classes
+    mixup_transforms, mixupcutmix = [], None
     if args.mixup_alpha > 0.0:
         mixup_transforms.append(transforms.RandomMixup(num_classes, p=1.0, alpha=args.mixup_alpha))
     if args.cutmix_alpha > 0.0:
         mixup_transforms.append(transforms.RandomCutmix(num_classes, p=1.0, alpha=args.cutmix_alpha))
     if mixup_transforms:
         mixupcutmix = torchvision.transforms.RandomChoice(mixup_transforms)
-        collate_fn = lambda batch: mixupcutmix(*default_collate(batch))  # noqa: E731
-    data_loader = torch.utils.data.DataLoader(
-        dataset,
-        batch_size=args.batch_size,
-        sampler=train_sampler,
-        num_workers=args.workers,
-        pin_memory=True,
-        collate_fn=collate_fn,
-    )
-    data_loader_test = torch.utils.data.DataLoader(
-        dataset_test, batch_size=args.batch_size, sampler=test_sampler, num_workers=args.workers, pin_memory=True
-    )
+        #  collate_fn = lambda batch: mixupcutmix(*default_collate(batch))  # noqa: E731
+
+    if args.use_dali:
+        data_loader = create_dali_dataloader_train(args)
+        data_loader_test = create_dali_dataloader_test(args)
+    else:
+        dataset, dataset_test, train_sampler, test_sampler = load_data(train_dir, val_dir, args)
+        data_loader = torch.utils.data.DataLoader(
+            dataset,
+            batch_size=args.batch_size,
+            sampler=train_sampler,
+            num_workers=args.workers,
+            pin_memory=True,
+            #  collate_fn=collate_fn,
+        )
+        data_loader_test = torch.utils.data.DataLoader(
+            dataset_test, batch_size=args.batch_size,
+            sampler=test_sampler, num_workers=args.workers, pin_memory=True
+        )
 
     print("Creating model")
     model = torchvision.models.__dict__[args.model](num_classes=num_classes)
@@ -341,23 +366,26 @@ def main(args):
         torch.backends.cudnn.benchmark = False
         torch.backends.cudnn.deterministic = True
         if model_ema:
-            evaluate(model_ema, criterion, data_loader_test, device=device, log_suffix="EMA")
+            evaluate(model_ema, criterion, data_loader_test, device=device, log_suffix="EMA", args=args)
         else:
-            evaluate(model, criterion, data_loader_test, device=device)
+            evaluate(model, criterion, data_loader_test, device=device, args=args)
         return
 
     print("Start training")
     start_time = time.time()
     for epoch in range(args.start_epoch, args.epochs):
-        if args.distributed:
+        if args.distributed and not args.use_dali:
             train_sampler.set_epoch(epoch)
         train_one_epoch(model, criterion, optimizer, data_loader,
-                device, epoch, args, model_ema, scaler)
+                device, epoch, args, model_ema, scaler, mixupcutmix)
         lr_scheduler.step()
-        if (epoch+1) % 10 == 0:
-            evaluate(model, criterion, data_loader_test, device=device)
+
+        n_ckpt_period = 10
+        if (epoch+1) % n_ckpt_period == 0:
+            evaluate(model, criterion, data_loader_test, device=device, args=args)
             if model_ema:
-                evaluate(model_ema, criterion, data_loader_test, device=device, log_suffix="EMA")
+                evaluate(model_ema, criterion, data_loader_test,
+                        device=device, log_suffix="EMA", args=args)
             if args.output_dir:
                 checkpoint = {
                     "model": model_without_ddp.state_dict(),
@@ -503,6 +531,10 @@ def get_args_parser(add_help=True):
         "--ra-reps", default=3, type=int, help="number of repetitions for Repeated Augmentation (default: 3)"
     )
     parser.add_argument("--weights", default=None, type=str, help="the weights enum name to load")
+    parser.add_argument("--use_dali", action="store_true", help="Use dali to load data")
+    parser.add_argument(
+        "--num-classes", default=1000, type=int, help="num of classes in dataset"
+    )
 
     return parser
 

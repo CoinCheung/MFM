@@ -271,7 +271,10 @@ class ResNet(nn.Module):
         #          nn.Conv2d(out_chan, 3, 1, 1, 0, bias=True),
         #          nn.Upsample(scale_factor=32., mode='bicubic',
         #              align_corners=False, antialias=True))
-        self.decoder = nn.Conv2d(out_chan, 3, 1, 1, 0, bias=True)
+        #  self.decoder = nn.Conv2d(out_chan, 3, 1, 1, 0, bias=True)
+        self.decoder = nn.Sequential(
+                nn.Conv2d(out_chan, 3 * 32 * 32, 1, 1, 0, bias=True),
+                nn.PixelShuffle(32))
         self.forward = self.forward_mfm
 
     def forward_backbone(self, x):
@@ -291,8 +294,9 @@ class ResNet(nn.Module):
         size = x.size()[-2:]
         x = self.forward_backbone(x)
         x = self.decoder(x)
-        x = F.interpolate(x, size=size, mode='bicubic',
-                align_corners=False, antialias=True)
+        #  x = F.interpolate(x, size=size, mode='bicubic',
+        #          align_corners=False, antialias=True)
+
         return x
 
     def forward_cls(self, x: Tensor) -> Tensor:

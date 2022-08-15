@@ -1,11 +1,22 @@
 
 
+# python main_mfm.py \
+#     -a resnet50  \
+#     -b 256 \
+#     --epoch 1 \
+#     --dist-url 'tcp://127.0.0.1:10023' \
+#     --use-mixed-precision \
+#     --dist-backend 'nccl' \
+#     --multiprocessing-distributed \
+#     --world-size 1 --rank 0 \
+#     --save-path ./mfm \
+#     ./imagenet/
+
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 NGPUS=8
 
 # rm ./res_pretrain/model_300.pth
 
-# mfm pretraining
 torchrun --nproc_per_node=$NGPUS train_mfm.py \
     --data-path ./imagenet/ \
     --model resnet50 \
@@ -46,4 +57,5 @@ torchrun --nproc_per_node=$NGPUS train_finetune.py \
     --val-resize-size 236 \
     --train-crop-size 160
 
+    # --use-dali \
 

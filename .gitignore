@@ -3,5 +3,7 @@
 ./res
 ./res_pretrain
 ./res_finetune
-./screenlog*
+screenlog*
 *pth
+main_mfm.py
+main_finetune.py

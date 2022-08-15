@@ -1,5 +1,5 @@
 # MFM
-code for paper "Masked Feature Prediction for Self-Supervised Visual Pre-Training" (https://arxiv.org/abs/2112.09133)
+Unofficial code for paper "Masked Feature Prediction for Self-Supervised Visual Pre-Training" (https://arxiv.org/abs/2112.09133)
 
 
 ## Platform
@@ -16,3 +16,11 @@ Prepare imagenet val set in same method as pytorch official classification [exam
     $ ln -s /path/to/imagenet/train ./imagenet/train
     $ ln -s /path/to/imagenet/val ./imagenet/val
 ```
+
+## Train
+Pretraining and finetuning Command is [here](./dist_train.sh)
+
+
+#### Sadly, I cannot reproduce the result in the paper now, and I am still doing experiments to try different settings. Maybe I will fail and give it up, until the original authors release their code.
+
+#### Hope this codebase can inspire other people who is interested in this work, and hope there is someone who can point out my mistake or tell me how to make it work.

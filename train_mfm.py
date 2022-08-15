@@ -7,7 +7,6 @@ import torch
 import torch.utils.data
 import torchvision
 from torch import nn
-from torch.utils.data.dataloader import default_collate
 from torchvision.transforms.functional import InterpolationMode
 
 import mfm.presets as presets
@@ -16,13 +15,26 @@ import mfm.utils as utils
 from mfm.sampler import RASampler
 from mfm.resnet import resnet50, resnet101
 from mfm.focal_frequency_loss import FocalFrequencyLoss
+from mfm.fft_masker import MaskedFFT
+from mfm.dali_loader import create_dali_dataloader_train
 
 
 model_names = ['resnet50', 'resnet101']
 model_factory = {'resnet50': resnet50, 'resnet101': resnet101}
 
 
-def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, args, model_ema=None, scaler=None):
+def parse_batch(batch, use_dali, device):
+    if use_dali:
+        image = batch[0]['data']
+        target = batch[0]['label'].squeeze(-1).long()
+    else:
+        image, target = batch
+        image = image.to(device, non_blocking=True)
+        target = target.to(device, non_blocking=True)
+    return image, target
+
+
+def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, args, model_ema=None, scaler=None, fft_masker=None):
     model.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter("lr", utils.SmoothedValue(window_size=1, fmt="{value:.5f}"))
@@ -30,13 +42,14 @@ def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, arg
 
     header = f"Epoch: [{epoch}]"
     #  for i, (image, target, mask) in enumerate(metric_logger.log_every(data_loader, args.print_freq, header)):
-    for i, (batch, cls_lb) in enumerate(metric_logger.log_every(data_loader, args.print_freq, header)):
+    for i, batch in enumerate(metric_logger.log_every(data_loader, args.print_freq, header)):
         start_time = time.time()
-        image, target, mask = batch
-        image, target, mask = image.to(device), target.to(device), mask.to(device)
+        image, target = parse_batch(batch, args.use_dali, device)
+
+        fft_im, fft_gts, fft_mask = fft_masker(image)
         with torch.cuda.amp.autocast(enabled=scaler is not None):
             output = model(image)
-            loss = criterion(output, target, mask)
+            loss = criterion(output, fft_gts, fft_mask)
 
         optimizer.zero_grad()
         if scaler is not None:
@@ -62,6 +75,8 @@ def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, arg
         batch_size = image.shape[0]
         metric_logger.update(loss=loss.item(), lr=optimizer.param_groups[0]["lr"])
         metric_logger.meters["img/s"].update(batch_size / (time.time() - start_time))
+
+    if args.use_dali: data_loader.reset()
 
 
 def _get_cache_path(filepath):
@@ -128,16 +143,18 @@ def main(args):
         torch.backends.cudnn.benchmark = True
 
     train_dir = os.path.join(args.data_path, "train")
-    dataset, train_sampler = load_data(train_dir, args)
 
-    num_classes = len(dataset.classes)
-    data_loader = torch.utils.data.DataLoader(
-        dataset,
-        batch_size=args.batch_size,
-        sampler=train_sampler,
-        num_workers=args.workers,
-        pin_memory=True,
-    )
+    if args.use_dali:
+        data_loader = create_dali_dataloader_train(args)
+    else:
+        dataset, train_sampler = load_data(train_dir, args)
+        data_loader = torch.utils.data.DataLoader(
+            dataset,
+            batch_size=args.batch_size,
+            sampler=train_sampler,
+            num_workers=args.workers,
+            pin_memory=True,
+        )
 
     print("Creating model")
     model = model_factory[args.model]()
@@ -237,21 +254,21 @@ def main(args):
     if args.resume:
         checkpoint = torch.load(args.resume, map_location="cpu")
         model_without_ddp.load_state_dict(checkpoint["model"])
-        if not args.test_only:
-            optimizer.load_state_dict(checkpoint["optimizer"])
-            lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
         args.start_epoch = checkpoint["epoch"] + 1
         if model_ema:
             model_ema.load_state_dict(checkpoint["model_ema"])
         if scaler:
             scaler.load_state_dict(checkpoint["scaler"])
 
+    ## fft masker
+    fft_masker = MaskedFFT(rad=16)
+
     print("Start training")
     start_time = time.time()
     for epoch in range(args.start_epoch, args.epochs):
-        if args.distributed:
+        if args.distributed and not args.use_dali:
             train_sampler.set_epoch(epoch)
-        train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, args, model_ema, scaler)
+        train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, args, model_ema, scaler, fft_masker)
         lr_scheduler.step()
         if args.output_dir and (epoch+1) % 10 == 0:
             checkpoint = {
@@ -322,10 +339,10 @@ def get_args_parser(add_help=True):
     parser.add_argument(
         "--lr-warmup-method", default="constant", type=str, help="the warmup method (default: constant)"
     )
-    parser.add_argument("--lr-warmup-decay", default=0.01, type=float, help="the decay for lr")
+    parser.add_argument("--lr-warmup-decay", default=0.005, type=float, help="the decay for lr")
     parser.add_argument("--lr-step-size", default=30, type=int, help="decrease lr every step-size epochs")
     parser.add_argument("--lr-gamma", default=0.1, type=float, help="decrease lr by a factor of lr-gamma")
-    parser.add_argument("--lr-min", default=0.0, type=float, help="minimum lr of lr schedule (default: 0.0)")
+    parser.add_argument("--lr-min", default=1e-5, type=float, help="minimum lr of lr schedule (default: 0.0)")
     parser.add_argument("--print-freq", default=100, type=int, help="print frequency")
     parser.add_argument("--output-dir", default=".", type=str, help="path to save outputs")
     parser.add_argument("--resume", default="", type=str, help="path of checkpoint")
@@ -377,6 +394,10 @@ def get_args_parser(add_help=True):
     parser.add_argument("--ra-sampler", action="store_true", help="whether to use Repeated Augmentation in training")
     parser.add_argument(
         "--ra-reps", default=3, type=int, help="number of repetitions for Repeated Augmentation (default: 3)"
+    )
+    parser.add_argument("--use-dali", action="store_true", help="Use dali to load data")
+    parser.add_argument(
+        "--num-classes", default=1000, type=int, help="num of classes in dataset"
     )
 
     return parser

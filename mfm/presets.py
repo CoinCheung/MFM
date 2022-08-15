@@ -1,7 +1,6 @@
 import torch
 from torchvision.transforms import autoaugment, transforms
 from torchvision.transforms.functional import InterpolationMode
-from mfm.loader import MaskedFFT
 
 
 class ClassificationPresetTrain:
@@ -96,7 +95,6 @@ class MFMPresetTrain:
                 transforms.PILToTensor(),
                 transforms.ConvertImageDtype(torch.float),
                 transforms.Normalize(mean=mean, std=std),
-                MaskedFFT(),
             ]
         )
 
