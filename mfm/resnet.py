@@ -266,14 +266,16 @@ class ResNet(nn.Module):
     def mfm(self):
         self.avgpool = nn.Identity()
         self.fc = nn.Identity()
-        out_chan = self.layer4[-1].expansion * 512
+        bb_out_chan = self.layer4[-1].expansion * 512
+        md_out_chan = 1
+
         #  self.decoder = nn.Sequential(
-        #          nn.Conv2d(out_chan, 3, 1, 1, 0, bias=True),
+        #          nn.Conv2d(bb_out_chan, md_out_chan, 1, 1, 0, bias=True),
         #          nn.Upsample(scale_factor=32., mode='bicubic',
         #              align_corners=False, antialias=True))
         #  self.decoder = nn.Conv2d(out_chan, 3, 1, 1, 0, bias=True)
         self.decoder = nn.Sequential(
-                nn.Conv2d(out_chan, 3 * 32 * 32, 1, 1, 0, bias=True),
+                nn.Conv2d(bb_out_chan, md_out_chan * 32 * 32, 1, 1, 0, bias=True),
                 nn.PixelShuffle(32))
         self.forward = self.forward_mfm
 

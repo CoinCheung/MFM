@@ -41,14 +41,13 @@ def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, arg
     metric_logger.add_meter("img/s", utils.SmoothedValue(window_size=10, fmt="{value:.2f}"))
 
     header = f"Epoch: [{epoch}]"
-    #  for i, (image, target, mask) in enumerate(metric_logger.log_every(data_loader, args.print_freq, header)):
     for i, batch in enumerate(metric_logger.log_every(data_loader, args.print_freq, header)):
         start_time = time.time()
         image, target = parse_batch(batch, args.use_dali, device)
 
         fft_im, fft_gts, fft_mask = fft_masker(image)
         with torch.cuda.amp.autocast(enabled=scaler is not None):
-            output = model(image)
+            output = model(fft_im)
             loss = criterion(output, fft_gts, fft_mask)
 
         optimizer.zero_grad()
@@ -287,6 +286,7 @@ def main(args):
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print(f"Training time {total_time_str}")
+
 
 
 def get_args_parser(add_help=True):

@@ -9,8 +9,8 @@ class ClassificationPresetTrain:
         self,
         *,
         crop_size,
-        mean=(0.485, 0.456, 0.406),
-        std=(0.229, 0.224, 0.225),
+        mean=(0.4, 0.4, 0.4),
+        std=(0.2, 0.2, 0.2),
         interpolation=InterpolationMode.BILINEAR,
         hflip_prob=0.5,
         auto_augment_policy=None,
@@ -57,8 +57,8 @@ class ClassificationPresetEval:
         *,
         crop_size,
         resize_size=256,
-        mean=(0.485, 0.456, 0.406),
-        std=(0.229, 0.224, 0.225),
+        mean=(0.4, 0.4, 0.4),
+        std=(0.2, 0.2, 0.2),
         interpolation=InterpolationMode.BILINEAR,
     ):
 
@@ -82,8 +82,8 @@ class MFMPresetTrain:
         self,
         *,
         crop_size,
-        mean=(0.485, 0.456, 0.406),
-        std=(0.229, 0.224, 0.225),
+        mean=(0.4, 0.4, 0.4),
+        std=(0.2, 0.2, 0.2),
         interpolation=InterpolationMode.BILINEAR,
         hflip_prob=0.5,
     ):

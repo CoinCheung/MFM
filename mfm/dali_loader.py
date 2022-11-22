@@ -58,8 +58,8 @@ def create_dali_pipeline(data_dir, crop, size, shard_id, num_shards, dali_cpu=Fa
                 interp_type=types.INTERP_TRIANGULAR)
         mirror = False
 
-    mean = [0.485, 0.456 ,0.406]
-    std  = [0.229, 0.224 ,0.225]
+    mean = [0.4, 0.4 ,0.4]
+    std  = [0.2, 0.2 ,0.2]
     images = fn.crop_mirror_normalize(images.gpu(),
             dtype=types.FLOAT,
             output_layout="CHW",

@@ -15,13 +15,19 @@ class MaskedFFT:
         '''
         input is pytorch tensor of nchw
         '''
-        x_fft = torch.fft.fft2(x)
+        x_fft = torch.fft.fft2(x, norm='ortho')
         x_fft_shift = torch.fft.fftshift(x_fft)
         fft_mask = self.gen_mask_circle(x_fft_shift)
         x_fft_filter = fft_mask * x_fft_shift
         x_fft_ishift = torch.fft.ifftshift(x_fft_filter)
-        x_ifft = torch.fft.ifft2(x_fft_ishift).abs()
-        return x_ifft, x_fft_shift, fft_mask
+        x_ifft = torch.fft.ifft2(x_fft_ishift, norm='ortho').abs()
+        #  return x_ifft, x_fft_shift, fft_mask
+
+        ## one channel target replace x_fft_shift
+        gray = x[:, 0:1, ...] * 0.229 + x[:, 1:2, ...] * 0.587 + x[:, 2:3, ...] * 0.114
+        gray_fft = torch.fft.fft2(gray, norm='ortho')
+        gray_fft_shift = torch.fft.fftshift(gray_fft)
+        return x_ifft, gray_fft_shift, fft_mask
 
 
     @torch.no_grad()
@@ -51,10 +57,13 @@ class MaskedFFT:
         '''
         device = x.device
         batchsize = x.size(0)
+        n_chan = x.size(1)
         size = tuple(x.size()[-2:])
         if self.mask_table is None or size != self.mask_size:
             self.gen_mask_table(x)
         inds = torch.randint(0, 2, (batchsize, ), device=device)
         batch_mask = self.mask_table[inds] # n1hw
+        #  inds = torch.randint(0, 2, (batchsize, n_chan), device=device)
+        #  batch_mask = self.mask_table.squeeze(1)[inds] # nchw
         return batch_mask
 
