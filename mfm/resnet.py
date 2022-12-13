@@ -267,14 +267,21 @@ class ResNet(nn.Module):
         self.avgpool = nn.Identity()
         self.fc = nn.Identity()
         bb_out_chan = self.layer4[-1].expansion * 512
-        md_out_chan = 1
+        md_out_chan = 3
 
+        ## useless
         #  self.decoder = nn.Sequential(
         #          nn.Conv2d(bb_out_chan, md_out_chan, 1, 1, 0, bias=True),
         #          nn.Upsample(scale_factor=32., mode='bicubic',
         #              align_corners=False, antialias=True))
-        #  self.decoder = nn.Conv2d(out_chan, 3, 1, 1, 0, bias=True)
+        ## use inter
+        #  self.decoder = nn.Conv2d(bb_out_chan, 3, 1, 1, 0, bias=True)
+        ## use pixel shuffl
         self.decoder = nn.Sequential(
+                #  nn.Conv2d(bb_out_chan, bb_out_chan, 1, 1, 0, bias=False),
+                #  nn.BatchNorm2d(bb_out_chan),
+                #  nn.ReLU(inplace=True),
+                #  nn.Dropout(0.1),
                 nn.Conv2d(bb_out_chan, md_out_chan * 32 * 32, 1, 1, 0, bias=True),
                 nn.PixelShuffle(32))
         self.forward = self.forward_mfm
@@ -296,6 +303,7 @@ class ResNet(nn.Module):
         size = x.size()[-2:]
         x = self.forward_backbone(x)
         x = self.decoder(x)
+        # use interp
         #  x = F.interpolate(x, size=size, mode='bicubic',
         #          align_corners=False, antialias=True)
 

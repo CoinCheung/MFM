@@ -7,6 +7,7 @@ import torch
 import torch.utils.data
 import torchvision
 from torch import nn
+import torch.nn.functional as F
 from torch.utils.data.dataloader import default_collate
 from torchvision.transforms.functional import InterpolationMode
 
@@ -22,6 +23,34 @@ from mfm.dali_loader import (
 model_names = ['resnet50', 'resnet101']
 
 
+class BCELbSmooth(nn.Module):
+
+    def __init__(self, n_classes=1000, label_smoothing=0.0):
+        super(BCELbSmooth, self).__init__()
+        self.n_classes = n_classes
+        self.crit = nn.BCEWithLogitsLoss()
+
+    def forward(self, x, lb):
+        lb_one_hot = F.one_hot(lb, self.n_classes)
+        loss = self.crit(x, lb_one_hot)
+        return loss
+
+
+class OneHotLBSmooth(nn.Module):
+
+    def __init__(self, num_classes=1000, label_smoothing=0.0):
+        super(OneHotLBSmooth, self).__init__()
+        self.num_classes = num_classes
+        self.label_smoothing = label_smoothing
+        self.pos = 1. - self.label_smoothing
+        self.neg = self.label_smoothing / (self.num_classes - 1)
+
+    def forward(self, lb):
+        lb_one_hot = F.one_hot(lb, self.num_classes).float()
+        lb_one_hot = lb_one_hot * self.pos + (1. - lb_one_hot) * self.neg
+        return lb_one_hot
+
+
 def parse_batch(batch, use_dali, device):
     if use_dali:
         image = batch[0]['data']
@@ -33,7 +62,7 @@ def parse_batch(batch, use_dali, device):
     return image, target
 
 
-def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, args, model_ema=None, scaler=None, mixupcutmix=None):
+def train_one_epoch(model, criterion, one_hot_encoder, optimizer, data_loader, device, epoch, args, model_ema=None, scaler=None, mixupcutmix=None):
     model.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter("lr", utils.SmoothedValue(window_size=1, fmt="{value:.5f}"))
@@ -43,6 +72,7 @@ def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, arg
     for i, batch in enumerate(metric_logger.log_every(data_loader, args.print_freq, header)):
         start_time = time.time()
         image, target = parse_batch(batch, args.use_dali, device)
+        target = one_hot_encoder(target)
         if mixupcutmix:
             image, target = mixupcutmix(image, target)
 
@@ -91,6 +121,7 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="
         for batch in metric_logger.log_every(data_loader, print_freq, header):
             image, target = parse_batch(batch, args.use_dali, device)
             output = model(image)
+            target = F.one_hot(target, output.size(1)).float()
             loss = criterion(output, target)
 
             acc1, acc5 = utils.accuracy(output, target, topk=(1, 5))
@@ -262,7 +293,12 @@ def main(args):
     if args.distributed and args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
 
-    criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
+    #  criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
+    #  criterion = nn.CrossEntropyLoss()
+    #  criterion = BCELbSmooth(label_smoothing=args.label_smoothing)
+    criterion = nn.BCEWithLogitsLoss()
+    one_hot_encoder = OneHotLBSmooth(num_classes=num_classes,
+            label_smoothing=args.label_smoothing)
 
     custom_keys_weight_decay = []
     if args.bias_weight_decay is not None:
@@ -376,7 +412,7 @@ def main(args):
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed and not args.use_dali:
             train_sampler.set_epoch(epoch)
-        train_one_epoch(model, criterion, optimizer, data_loader,
+        train_one_epoch(model, criterion, one_hot_encoder, optimizer, data_loader,
                 device, epoch, args, model_ema, scaler, mixupcutmix)
         lr_scheduler.step()
 
@@ -418,7 +454,7 @@ def get_args_parser(add_help=True):
     )
     parser.add_argument("--epochs", default=90, type=int, metavar="N", help="number of total epochs to run")
     parser.add_argument(
-        "-j", "--workers", default=8, type=int, metavar="N", help="number of data loading workers (default: 16)"
+        "-j", "--workers", default=16, type=int, metavar="N", help="number of data loading workers (default: 16)"
     )
     parser.add_argument("--opt", default="sgd", type=str, help="optimizer")
     parser.add_argument("--lr", default=0.1, type=float, help="initial learning rate")

@@ -21,13 +21,13 @@ class MaskedFFT:
         x_fft_filter = fft_mask * x_fft_shift
         x_fft_ishift = torch.fft.ifftshift(x_fft_filter)
         x_ifft = torch.fft.ifft2(x_fft_ishift, norm='ortho').abs()
-        #  return x_ifft, x_fft_shift, fft_mask
+        return x_ifft, x_fft_shift, fft_mask
 
-        ## one channel target replace x_fft_shift
-        gray = x[:, 0:1, ...] * 0.229 + x[:, 1:2, ...] * 0.587 + x[:, 2:3, ...] * 0.114
-        gray_fft = torch.fft.fft2(gray, norm='ortho')
-        gray_fft_shift = torch.fft.fftshift(gray_fft)
-        return x_ifft, gray_fft_shift, fft_mask
+        #  ## one channel target replace x_fft_shift
+        #  gray = x[:, 0:1, ...] * 0.229 + x[:, 1:2, ...] * 0.587 + x[:, 2:3, ...] * 0.114
+        #  gray_fft = torch.fft.fft2(gray, norm='ortho')
+        #  gray_fft_shift = torch.fft.fftshift(gray_fft)
+        #  return x_ifft, gray_fft_shift, fft_mask
 
 
     @torch.no_grad()
