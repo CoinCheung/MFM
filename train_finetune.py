@@ -281,7 +281,7 @@ def main(args):
         )
 
     print("Creating model")
-    model = torchvision.models.__dict__[args.model](num_classes=num_classes)
+    model = torchvision.models.__dict__[args.model](num_classes=num_classes, pretrained=False)
     if not args.weights is None:
         print(f'load weights from: {args.weights}')
         state = torch.load(args.weights, map_location='cpu')['model']
@@ -454,7 +454,7 @@ def get_args_parser(add_help=True):
     )
     parser.add_argument("--epochs", default=90, type=int, metavar="N", help="number of total epochs to run")
     parser.add_argument(
-        "-j", "--workers", default=16, type=int, metavar="N", help="number of data loading workers (default: 16)"
+        "-j", "--workers", default=8, type=int, metavar="N", help="number of data loading workers (default: 16)"
     )
     parser.add_argument("--opt", default="sgd", type=str, help="optimizer")
     parser.add_argument("--lr", default=0.1, type=float, help="initial learning rate")

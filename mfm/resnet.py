@@ -267,7 +267,7 @@ class ResNet(nn.Module):
         self.avgpool = nn.Identity()
         self.fc = nn.Identity()
         bb_out_chan = self.layer4[-1].expansion * 512
-        md_out_chan = 3
+        md_out_chan = 1
 
         ## useless
         #  self.decoder = nn.Sequential(
@@ -278,7 +278,7 @@ class ResNet(nn.Module):
         #  self.decoder = nn.Conv2d(bb_out_chan, 3, 1, 1, 0, bias=True)
         ## use pixel shuffl
         self.decoder = nn.Sequential(
-                #  nn.Conv2d(bb_out_chan, bb_out_chan, 1, 1, 0, bias=False),
+                #  nn.Conv2d(bb_out_chan, bb_out_chan, 3, 1, 0, bias=False),
                 #  nn.BatchNorm2d(bb_out_chan),
                 #  nn.ReLU(inplace=True),
                 #  nn.Dropout(0.1),
