@@ -37,7 +37,7 @@ Though better result is achieved, it seems that the baseline is also much higher
 <tr>
 <td align="center">supervised pretrain</td>
 <td align="center">78.942</td>
-<td align="center"></td>
+<td align="center">-</td>
 <td align="center"><a href="https://github.com/CoinCheung/MFM/releases/download/0.0.0/saved_model_bce_0_pretrain.pth">link</a></td>
 </tr>
 
