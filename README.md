@@ -50,7 +50,7 @@ Though better result is achieved, it seems that the baseline is also much higher
 
 </tbody></table>
 
-&#8195;&#8195;Note: Supervised pretrain means finetune from torchvision resnet weights (by setting `pretrained=True`). It seems that supervised pretrain is better.  
+**Note**: Supervised pretrain means finetune from torchvision resnet weights (by setting `pretrained=True`). It seems that supervised pretrain is better.  
 
 
 

@@ -311,7 +311,6 @@ class ResNet(nn.Module):
 
     def forward_cls(self, x: Tensor) -> Tensor:
         x = self.forward_backbone(x)
-
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
         x = self.fc(x)

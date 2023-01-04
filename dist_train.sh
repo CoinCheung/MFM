@@ -67,7 +67,7 @@ torchrun --nproc_per_node=$NGPUS --master_port $PORT train_finetune.py \
     --auto-augment ra_6_10 \
     --weights ./res_pretrain/model_300.pth \
     --amp \
-    --val-resize-size 236 \
+    --val-resize-size 235 \
     --train-crop-size 160
 
 
