@@ -12,5 +12,5 @@ mfm/__pycache__/
 .nfs*
 *tar
 try.py
-test.sh
+./test.sh
 

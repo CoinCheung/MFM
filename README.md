@@ -16,22 +16,22 @@ Though better result is achieved, it seems that the baseline is also much higher
 <tr>
 <td align="center">paper scratch</td>
 <td align="center">78.1</td>
-<td align="center"></td>
-<td align="center"></td>
+<td align="center">-</td>
+<td align="center">-</td>
 </tr>
 
 <tr>
 <td align="center">paper mfm pretrain</td>
 <td align="center">78.5</td>
-<td align="center"></td>
-<td align="center"></td>
+<td align="center">-</td>
+<td align="center">-</td>
 </tr>
 
 <tr>
 <td align="center">scratch</td>
 <td align="center">78.542</td>
 <td align="center">-</td>
-<td align="center">link</td>
+<td align="center"><a href="https://github.com/CoinCheung/MFM/releases/download/0.0.0/saved_model_bce_0_nopretrain.pth">link</a></td>
 </tr>
 
 <tr>
