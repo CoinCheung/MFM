@@ -1,8 +1,7 @@
 # MFM
 Unofficial code for paper "Masked Feature Prediction for Self-Supervised Visual Pre-Training" (https://arxiv.org/pdf/2206.07706.pdf)
 
-
-Though better result is achieved, it seems that the baseline is also much higher than in paper.  
+Below are experiments with resnet50. Though better result is achieved, it seems that the baseline is also much higher than in paper.  
 
 <table><tbody>
 <!-- START TABLE -->
@@ -56,11 +55,12 @@ Though better result is achieved, it seems that the baseline is also much higher
 
 ## Platform
 
-* pytorch 1.11.0
-* torchvision 0.12.0
-* dali 1.16.0
+* pytorch 1.13.1
+* torchvision 0.14.1
+* dali 1.21.0
+* cuda 11.6
 * V100 GPU(32G) x 8
-* driver: 450.172.01
+* driver: 470.82.01
 
 
 ## Dataset
@@ -75,3 +75,76 @@ Prepare imagenet val set in same method as pytorch official classification [exam
 Pretraining and finetuning Command is [here](./dist_train.sh)
 
 
+## More ablations  
+Here are some points that affects the results: 
+
+1. finetune `--val-resize-size`
+When we eval the model after finetuning, we always resize the short side of the image to a fixed value before a center crop operation. Here I find sometimes the fixed short side size affects the acc by a noticeable margin. Take the "supervised pretrain" as example: 
+<table><tbody>
+<th valign="bottom">val-resize-size</th>
+<th valign="bottom">234</th>
+<th valign="bottom">235</th>
+<th valign="bottom">236</th>
+
+<tr>
+<td align="center">top-1 acc</td>
+<td align="center">78.856</td>
+<td align="center">78.942</td>
+<td align="center">78.794</td>
+</tr>
+
+</tbody></table>
+
+2. finetune with bce loss is important  
+We can see the difference of this by finetuning from scratch with CE(cross entropy) loss and BCE(binary cross entropy) loss, and the result is: 
+<table><tbody>
+<th valign="bottom">loss</th>
+<th valign="bottom">CE</th>
+<th valign="bottom">BCE</th>
+
+<tr>
+<td align="center">top-1 acc</td>
+<td align="center">78.542</td>
+<td align="center">77.952</td>
+</tr>
+
+</tbody></table>
+
+3. pretrain random crop area
+We usually crop a part of the image with certain area ratio from the original image, and the default value of this ratio is `0.08-1.0` with torchvision `RandomResizedCrop`. Different self-supervised learning methods tend to prefer different random area ratios. For example, MAE uses `0.2-1.0`, MAE3d uses `0.5-1.0`, and SimMIM uses `0.67-1.0`. Here I find a smaller lower bound of `0.2-1.0` is better:  
+<table><tbody>
+<th valign="bottom">random area ratio</th>
+<th valign="bottom">0.67-1.0</th>
+<th valign="bottom">0.2-1.0</th>
+<th valign="bottom">0.1-1.0</th>
+
+<tr>
+<td align="center">top-1 acc</td>
+<td align="center">78.770</td>
+<td align="center">77.826</td>
+<td align="center">77.842</td>
+</tr>
+
+</tbody></table>
+
+Though here `0.1-1.0` is better than `0.2-1.0`, I still use the latter, since with `0.1-1.0`, the finetuning eval results is more affacted by `val-resize-size`: 
+<table><tbody>
+<th valign="bottom">val-resize-size</th>
+<th valign="bottom">234</th>
+<th valign="bottom">235</th>
+<th valign="bottom">236</th>
+
+<tr>
+<td align="center">acc `0.2-1.0`</td>
+<td align="center">78.816</td>
+<td align="center">78.826</td>
+<td align="center">78.796</td>
+</tr>
+
+<tr>
+<td align="center">acc `0.1-1.0`</td>
+<td align="center">78.730</td>
+<td align="center">78.842</td>
+<td align="center">78.738</td>
+</tr>
+</tbody></table>
