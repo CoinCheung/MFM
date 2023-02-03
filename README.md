@@ -148,3 +148,83 @@ We usually crop a part of the image with certain area ratio from the original im
     <td align="center">78.738</td>
     </tr>
     </tbody></table>
+
+4. model variance  
+Here I pretrain the model for 4 times(2 on 8 v100 gpu, and 2 on 8 p40 gpu) with identical configuration. Then I finetune 3 times for each of the pretrained model(with 8 p40). Results are listed below. We can see that the results varies between a big margin. Maybe the above good results are brought by a good luck. Hence, I cannot say that I have certainly reproduced the results in the paper now.
+    <table><tbody>
+    <th align="center">pretrain</th>
+    <th align="center">finetune</th>
+    <th align="center">acc1(235)</th>
+    <th align="center" colspan='2'>mean/std</th>
+
+    <tr>
+    <td align="center" rowspan="3">round 1</td>
+    <td align="center">round 1</td>
+    <td align="center">78.654</td>
+    <td align="center" rowspan="3">78.644/0.024</td>
+    <td align="center" rowspan="12">78.621/0.08</td>
+    </tr>
+
+    <tr>
+    <td align="center">round 2</td>
+    <td align="center">78.61</td>
+    </tr>
+
+    <tr>
+    <td align="center">round 3</td>
+    <td align="center">78.668</td>
+    </tr>
+
+    <tr>
+    <td align="center" rowspan="3">round 2</td>
+    <td align="center">round 1</td>
+    <td align="center">78.646</td>
+    <td align="center" rowspan="3">78.642/0.122</td>
+    </tr>
+
+    <tr>
+    <td align="center">round 2</td>
+    <td align="center">78.79</td>
+    </tr>
+
+    <tr>
+    <td align="center">round 3</td>
+    <td align="center">78.49</td>
+    </tr>
+
+    <tr>
+    <td align="center" rowspan="3">round 3</td>
+    <td align="center">round 1</td>
+    <td align="center">78.516</td>
+    <td align="center" rowspan="3">78.612/0.073</td>
+    </tr>
+
+    <tr>
+    <td align="center">round 2</td>
+    <td align="center">78.626</td>
+    </tr>
+
+    <tr>
+    <td align="center">round 3</td>
+    <td align="center">78.694</td>
+    </tr>
+
+    <tr>
+    <td align="center" rowspan="3">round 4</td>
+    <td align="center">round 1</td>
+    <td align="center">78.608</td>
+    <td align="center" rowspan="3">78.584/0.080</td>
+    </tr>
+
+    <tr>
+    <td align="center">round 2</td>
+    <td align="center">78.668</td>
+    </tr>
+
+    <tr>
+    <td align="center">round 3</td>
+    <td align="center">78.476</td>
+    </tr>
+    </tbody></table>
+
+

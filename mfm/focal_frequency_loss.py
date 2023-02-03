@@ -230,3 +230,26 @@ class FocalFrequencyLoss(torch.nn.Module):
     #      else:
     #          loss = loss.mean()
     #      return loss
+
+
+    #  def forward(self, preds, target, mask=None):
+    #      '''
+    #      preds is nchw real tensor
+    #      target is nchw complex tensor
+    #      mask is n1hw real tensor, we should use (1-mask) if we reconstruct masked portion
+    #      '''
+    #      preds = preds.float()
+    #      p_fft = torch.fft.fft2(preds, norm='ortho')
+    #      p_fft_shift = torch.fft.fftshift(p_fft)
+    #      diff = target - p_fft_shift
+    #
+    #      #  loss = diff.abs().pow(self.gamma)
+    #      eps = 1e-7
+    #      loss = (diff.real.pow(2.) + diff.imag.pow(2.) + eps).pow(self.gamma/2.)
+    #      if not mask is None:
+    #          loss = loss.mean(dim=1, keepdim=True)
+    #          mask = (1 - mask).bool().expand_as(loss)
+    #          loss = loss[mask].mean()
+    #      else:
+    #          loss = loss.mean()
+    #      return loss

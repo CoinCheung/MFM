@@ -28,6 +28,6 @@ torchrun --nproc_per_node=$NGPUS --master_port 33212 train_finetune.py \
     --output-dir ./res_finetune \
     --auto-augment ra_6_10 \
     --amp \
-    --val-resize-size 237 \
+    --val-resize-size 235 \
     --train-crop-size 160
 

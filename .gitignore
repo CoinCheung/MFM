@@ -1,8 +1,8 @@
 
-./imagenet
-./res
-./res_pretrain
-./res_finetune
+imagenet
+res
+res_pretrain/*
+res_finetune/*
 screenlog*
 hardcopy*
 *pth
@@ -12,3 +12,4 @@ mfm/__pycache__/
 .nfs*
 *tar
 try.py
+log_*
