@@ -2,6 +2,8 @@
 export OMP_NUM_THREADS=4
 export MKL_NUM_THREADS=4
 
+mkdir -p res_pretrain res_finetune
+
 # export CUDA_VISIBLE_DEVICES=0,1,6,7
 # NGPUS=4
 # LR=0.0006
